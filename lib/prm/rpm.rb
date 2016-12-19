@@ -125,7 +125,7 @@ module Redhat
 
                 unless gpg == false
                     # We expect that GPG is installed and a key has already been made
-                    sign_cmd = "gpg -u #{gpg} --yes --detach-sign --armor #{repo_path}/repomd.xml"
+                    sign_cmd = "echo \'#{gpg_passphrase}\' | gpg -u #{gpg} --yes --detach-sign --armor #{repo_path}/repomd.xml"
                     system sign_cmd
                 end
 
