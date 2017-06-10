@@ -88,9 +88,9 @@ module Debian
 
         Dir.glob("#{fpath}*.deb").peach do |deb|
             algs = {
-                'md5' => Digest::MD5.new,
-                'sha1' => Digest::SHA1.new,
-                'sha256' => Digest::SHA256.new
+                'md5'    => lambda { Digest::MD5.new },
+                'sha1'   => lambda { Digest::SHA1.new },
+                'sha256' => lambda { Digest::SHA256.new }
             }
             sums = {
                 'md5' => '',
@@ -101,7 +101,6 @@ module Debian
             init_size = File.size(deb)
             deb_contents = nil
 
-            FileUtils.mkdir_p "tmp/#{tdeb}/"
             if not nocache
                 sums.keys.each do |s|
                     sum_path = "#{path}/dists/#{r}/#{c}/binary-#{a}/#{s}-results/#{tdeb}"
@@ -109,23 +108,23 @@ module Debian
 
                     if File.exist?(sum_path)
                         stored_sum = File.read(sum_path)
-                        sum = stored_sum unless nocache.nil?
+                        sum = stored_sum
                     end
 
                     unless sum
                         deb_contents ||= File.read(deb)
+                        algs[s] = algs[s].call
                         sum = algs[s].hexdigest(deb_contents)
+                        File.open(sum_path, 'w') { |f| f.write(sum) }
                     end
 
                     sums[s] = sum
-                    if nocache.nil?
-                        File.open(sum_path, 'w') { |f| f.write(sum) }
-                    elsif sum != stored_sum
-                        puts "WARN: #{s}sum mismatch on #{deb}\n"
-                    end
                 end
             end
+
+            FileUtils.mkdir_p "tmp/#{tdeb}/"
             `ar p #{deb} control.tar.gz | tar zx -C tmp/#{tdeb}/`
+            control_file = "tmp/#{tdeb}/control"
 
             package_info = [
                 "Filename: #{npath}#{s3_compatible_encode(tdeb)}",
@@ -137,15 +136,14 @@ module Debian
 
             write_mutex.synchronize do
                 # Copy the control file data into the Packages list
-                d.write(File.read("tmp/#{tdeb}/control").gsub!(/\n+/, "\n"))
+                d.write(File.read("#{control_file}").gsub!(/\n+/, "\n"))
                 d.write(package_info.join("\n"))
                 d.write("\n\n") # blank line between package info in the Packages file
             end
+            FileUtils.rmtree 'tmp/'
         end
-
-        FileUtils.rmtree 'tmp/'
-
         d.close
+
 
         Zlib::GzipWriter.open(pfpath + ".gz") do |gz|
             f = File.new(pfpath, "r")
