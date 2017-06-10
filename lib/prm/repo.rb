@@ -10,6 +10,7 @@ require 'thread'
 require 'peach'
 require 'aws/s3'
 require 'arr-pm'
+require 'time'
 require File.join(File.dirname(__FILE__), 'rpm.rb')
 
 module Debian
@@ -155,7 +156,7 @@ module Debian
     end
 
     def generate_release(path,release,component,arch,label,origin)
-        date = Time.now.utc
+        date = Time.now.utc.strftime("%a, %d %b %Y %H:%M:%S UTC")
 
         release_info = Hash.new()
         unreasonable_array = ["Packages", "Packages.gz", "Release"]
